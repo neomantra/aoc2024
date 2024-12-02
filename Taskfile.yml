@@ -1,0 +1,48 @@
+# aoc2024 Taskfile.yml
+
+version: '3'
+
+tasks:
+  default:
+    desc: 'Default task runs the "build" task'
+    deps:
+      - build
+
+  list:
+    desc: 'Lists available tasks'
+    cmds:
+      - task --list-all
+
+###############################################################################
+
+  tidy:
+    desc: 'Go tidy all the things'
+    cmds:
+      - go mod tidy
+
+  build:
+    desc: 'Build all the things'
+    deps: [tidy]
+    cmds:
+      - go build -o bin/aoc2024-1 1/main.go
+      - go build -o bin/aoc2024-2 2/main.go
+
+  clean:
+    desc: 'Clean all the things'
+    cmds:
+      - rm bin/aoc2024-1
+      - rm bin/aoc2024-2
+
+  test:
+    desc: 'Test all the things'
+    deps: [build]
+    cmds:
+      - go run 1/main.go 1/1.test.txt
+      - go run 2/main.go 2/2.test.txt
+
+  run:
+    desc: 'Run all the things'
+    deps: [build]
+    cmds:
+      - go run 1/main.go 1/1.txt
+      - go run 2/main.go 2/2.txt
