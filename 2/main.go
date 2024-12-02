@@ -24,6 +24,7 @@ func abs(x int64) int64 {
 
 type Report []int64
 
+// isReportSafe returns true if the report is safe, false otherwise.
 func isReportSafe(r Report) bool {
 	var hasBeenIncreasing bool
 	const minDiff, maxDiff = 1, 3
@@ -48,6 +49,39 @@ func isReportSafe(r Report) bool {
 	}
 	return true
 }
+
+func dampenReport(r Report, pos int) Report {
+	// remove element at pos
+	// also return append(r[:pos], r[pos+1:]...)
+	// but that looks weird in debugging
+	var d Report
+	for i, v := range r {
+		if i != pos {
+			d = append(d, v)
+		}
+	}
+	return d
+}
+
+func isReportSafeDampened(r Report) bool {
+	// if it is safe, then report so
+	if isReportSafe(r) {
+		return true
+	}
+
+	// we are allowed to be safe with a level removed
+	// try every position, and we're safe if its safe
+	for i := 0; i < len(r); i++ {
+		dampenedReport := dampenReport(r, i)
+		if isReportSafe(dampenedReport) {
+			return true
+		}
+	}
+
+	return false
+}
+
+///////////////////////////////////////////////////////////////////////////////
 
 func main() {
 	// Open and read data file
@@ -82,4 +116,14 @@ func main() {
 		}
 	}
 	fmt.Println("2.1:", safeCount)
+
+	// part 2
+	safeCountDampened := 0
+	for _, report := range reports {
+		if isReportSafeDampened(report) {
+			safeCountDampened++
+		}
+	}
+	fmt.Println("2.1:", safeCountDampened)
+
 }
