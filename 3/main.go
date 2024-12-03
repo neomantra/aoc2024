@@ -15,6 +15,8 @@ type MulOp struct {
 	A, B int
 }
 
+///////////////////////////////////////////////////////////////////////////////
+
 // retruns (a, b, error) with non-nil error on error
 // currently not strict to digit spec
 func extractMulArgs(mul string) (int, int, error) {
@@ -33,7 +35,7 @@ func extractMulArgs(mul string) (int, int, error) {
 	return a, b, nil
 }
 
-// collectMulOpsextracts all mul(*) operators from source
+// collectMulOps extracts all valid mul(*) operators from source
 func collectMulOps(src string) []MulOp {
 	var result []MulOp
 	var mulRegex = regexp.MustCompile(`mul\((.*?)\)`)
@@ -57,6 +59,52 @@ func collectMulOps(src string) []MulOp {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+// collectMulOpsDoDont extracts all valid mul(*) operators from source, with Do/Dont log
+// Returns the ops and the next dontMultiply flag
+func collectMulOpsDoDont(src string) []MulOp {
+	var mulRegex = regexp.MustCompile(`^mul\((\d{1,3})\,(\d{1,3})\)`)
+	var dontMultiply bool = false // default false means multiply-enabled
+	var result []MulOp
+	for i := 0; i < len(src); {
+		// not the most efficient, but get 'er done
+		doIdx := strings.Index(src[i:], "do()")
+		if doIdx == 0 {
+			dontMultiply = false
+			i = i + len("do()")
+			continue
+		}
+
+		dontIdx := strings.Index(src[i:], "don't()")
+		if dontIdx == 0 {
+			dontMultiply = true
+			i = i + len("don't()")
+			continue
+		}
+
+		mulIdx := strings.Index(src[i:], "mul(")
+		if mulIdx == 0 {
+			matches := mulRegex.FindStringSubmatch(src[i:])
+			if len(matches) != 3 {
+				i = i + len("mul(")
+				continue
+			}
+			a, _ := strconv.Atoi(matches[1])
+			b, _ := strconv.Atoi(matches[2])
+			if dontMultiply == false {
+				result = append(result, MulOp{A: a, B: b})
+			}
+			i = i + len(matches[0])
+			continue
+		}
+
+		i = i + 1
+	}
+
+	return result
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 func main() {
 	// Open and read data file
 	source, err := os.ReadFile(os.Args[1])
@@ -75,4 +123,13 @@ func main() {
 	}
 	fmt.Println("3.1:", sumResult)
 
+	// part 2
+	sumResult = 0
+	mulOpsDoDont := collectMulOpsDoDont(string(source))
+	for _, mulOp := range mulOpsDoDont {
+		if err == nil {
+			sumResult += (mulOp.A * mulOp.B)
+		}
+	}
+	fmt.Println("3.2:", sumResult)
 }

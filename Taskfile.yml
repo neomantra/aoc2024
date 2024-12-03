@@ -42,6 +42,7 @@ tasks:
       - go run 1/main.go 1/1.test.txt
       - go run 2/main.go 2/2.test.txt
       - go run 3/main.go 3/3.test.txt
+      - go run 3/main.go 3/3.test2.txt
 
   run:
     desc: 'Run all the things'
