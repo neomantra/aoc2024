@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-
-	"github.com/NimbleMarkets/ntcharts/canvas"
 )
 
 func clamp(x, min, max int) int {
@@ -42,16 +40,9 @@ func signOf(x int) int {
 ///////////////////////////////////////////////////////////////////////////////
 
 type Board struct {
-	puzzle string
-	lines  []string
-	counts [][]int // (y,x) matrix of hit counts (for coloring)
-
-	canvas     canvas.Model // for plotting
+	puzzle     string
+	lines      []string
 	maxX, maxY int
-}
-
-func (b *Board) Canvas() *canvas.Model {
-	return &b.canvas
 }
 
 func NewBoard(puzzle string) *Board {
@@ -62,25 +53,17 @@ func NewBoard(puzzle string) *Board {
 	}
 
 	lenX, lenY := len(lines[0]), len(lines) // assumes uniform input
-	canvas := canvas.New(lenX, lenY)
-	canvas.SetLines(lines)
-
-	// fill out counts matrix
-	var counts [][]int
-	for i := 0; i < lenY; i++ {
-		counts = append(counts, make([]int, lenX)) // 0-filled
-	}
 
 	return &Board{
 		puzzle: puzzle,
 		lines:  lines,
-		counts: counts,
 		maxX:   maxOf(0, lenX-1),
 		maxY:   maxOf(0, lenY-1),
-		canvas: canvas,
 	}
 }
 
+// CharAt returns the character at the given position.
+// Returns 0 if out-of-bounds
 func (b *Board) CharAt(x int, y int) byte {
 	if x < 0 || x > b.maxX || y < 0 || y > b.maxY {
 		// out of bounds, return empty rune
@@ -89,6 +72,8 @@ func (b *Board) CharAt(x int, y int) byte {
 	return b.lines[y][x]
 }
 
+// StringLine returns a string of characters from the board of max `length`
+// The sign of xdir/ydir express unit direction, 0 is no movement.
 func (b *Board) StringLine(x, y, length, xdir, ydir int) string {
 	// build the string via iteration
 	signX, signY := signOf(xdir), signOf(ydir)
@@ -107,10 +92,7 @@ func (b *Board) StringLine(x, y, length, xdir, ydir int) string {
 }
 
 func (b *Board) CountAt(word string, x int, y int) int {
-	if word == "" {
-		return 0
-	}
-	if b.lines[y][x] != word[0] {
+	if word == "" || b.lines[y][x] != word[0] {
 		return 0 // quick exit
 	}
 
@@ -194,7 +176,6 @@ func main() {
 	}
 
 	// part 1
-	// fmt.Println(board.Canvas().View())
 	fmt.Println("3.1:", board.CountWord("XMAS"))
 
 	// part 2
