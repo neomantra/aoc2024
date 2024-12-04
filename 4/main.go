@@ -148,6 +148,37 @@ func (b *Board) CountWord(word string) int {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+func testMS(a, b byte) bool {
+	if (a == 'M' && b == 'S') || (a == 'S' && b == 'M') {
+		return true
+	}
+	return false
+}
+func (b *Board) CountX_MAS() int {
+	// we are going to find "MAS" shaped line an X
+	count := 0
+	for y := 0; y < b.maxY+1; y++ {
+		for x := 0; x < b.maxX+1; x++ {
+			// is it an "A"
+			if b.lines[y][x] != 'A' {
+				continue
+			}
+			// great it's an A, let's sample the corners
+			ul := b.CharAt(x-1, y-1)
+			lr := b.CharAt(x+1, y+1)
+			ll := b.CharAt(x-1, y+1)
+			ur := b.CharAt(x+1, y-1)
+			if testMS(ul, lr) && testMS(ll, ur) {
+				count += 1
+			}
+			fmt.Println(x, y, count)
+		}
+	}
+	return count
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 func main() {
 	// Open and read data file
 	puzzle, err := os.ReadFile(os.Args[1])
@@ -156,12 +187,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	// part 1
 	board := NewBoard(string(puzzle))
 	if board == nil {
 		fmt.Fprintf(os.Stderr, "Error creating board\n")
 		os.Exit(1)
 	}
+
+	// part 1
 	// fmt.Println(board.Canvas().View())
-	fmt.Println("3.2:", board.CountWord("XMAS"))
+	fmt.Println("3.1:", board.CountWord("XMAS"))
+
+	// part 2
+	fmt.Println("3.2:", board.CountX_MAS())
 }
