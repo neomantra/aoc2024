@@ -2,7 +2,7 @@
 
 [Advent of Code 2024](https://adventofcode.com/2024)
 
-Never did more that a week, we'll see.  Probably will do it mostly in Golang?
+Never did more than a week before, we'll see.  Probably will do it mostly in Golang?
 
 ## Tasks
 

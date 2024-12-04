@@ -33,6 +33,16 @@
             "args": [
                 "${workspaceFolder}/3/3.test.txt"
             ]
+        },
+        {
+            "name": "Debug 4",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/4/main.go",
+            "args": [
+                "${workspaceFolder}/4/4.test.txt"
+            ]
         }
     ]
 }
