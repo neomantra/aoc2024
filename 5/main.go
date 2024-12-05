@@ -11,10 +11,12 @@ import (
 )
 
 type PageOrdering struct {
-	A, B int
+	Before, After Page
 }
 
-type Update []int
+type Page int
+
+type Update []Page
 
 type Rules struct {
 	Orderings []PageOrdering
@@ -30,9 +32,9 @@ func NewRules(rulesStr string) *Rules {
 	for _, line := range strings.Split(rulesStr[:separator], "\n") {
 		fields := strings.Split(line, "|")
 		if len(fields) == 2 {
-			a, _ := strconv.Atoi(fields[0])
-			b, _ := strconv.Atoi(fields[1])
-			rules.Orderings = append(rules.Orderings, PageOrdering{A: a, B: b})
+			before, _ := strconv.Atoi(fields[0])
+			after, _ := strconv.Atoi(fields[1])
+			rules.Orderings = append(rules.Orderings, PageOrdering{Before: Page(before), After: Page(after)})
 		}
 	}
 
@@ -41,7 +43,7 @@ func NewRules(rulesStr string) *Rules {
 		pages := strings.Split(line, ",")
 		for _, page := range pages {
 			pageNum, _ := strconv.Atoi(page)
-			update = append(update, pageNum)
+			update = append(update, Page(pageNum))
 		}
 		rules.Updates = append(rules.Updates, update)
 	}
@@ -50,9 +52,9 @@ func NewRules(rulesStr string) *Rules {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-func (r *Rules) isOrderValid(a, b int) bool {
+func (r *Rules) isOrderValid(x, y Page) bool {
 	for _, ordering := range r.Orderings {
-		if ordering.A == b && ordering.B == a {
+		if ordering.Before == y && ordering.After == x {
 			return false
 		}
 	}
@@ -83,6 +85,61 @@ func (r *Rules) findCorrectUpdates() []Update {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+func (r *Rules) repairUpdate(update Update) Update {
+	// gotta keep re-sorting until done sorting
+	// assumes no cycles in Orderings
+	dirty := true
+	for dirty {
+		dirty = false
+		for i := 0; i < len(update); i++ {
+			pageI := update[i]
+			for j := i + 1; j < len(update); j++ {
+				// j is always after i
+				pageJ := update[j]
+				for _, ordering := range r.Orderings {
+					if ordering.Before == pageJ && ordering.After == pageI {
+						// move pageJ to where pageI was, shift rest over
+						for k := j; k > i; k-- {
+							update[k] = update[k-1]
+						}
+						update[i] = pageJ
+						dirty = true // gotta keep re-sorting until done
+					}
+				}
+			}
+		}
+	}
+	return update
+}
+
+func (r *Rules) findAndRepairUpdates() []Update {
+	var repaired []Update
+
+	for _, update := range r.Updates {
+		if !r.isUpdateCorrect(update) {
+			fmt.Printf("%v\n", update)
+			rp := r.repairUpdate(update)
+			repaired = append(repaired, rp)
+			fmt.Printf("%v\n", rp)
+		}
+	}
+	return repaired
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+func sumUpdateMiddlePages(updates []Update) int {
+	sumMiddles := 0
+	for _, update := range updates {
+		// extract center page
+		middlePage := update[len(update)/2]
+		sumMiddles += int(middlePage)
+	}
+	return sumMiddles
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 func main() {
 	// Open and read data file
 	rulesData, err := os.ReadFile(os.Args[1])
@@ -99,11 +156,11 @@ func main() {
 
 	// part 1
 	correctUpdates := rules.findCorrectUpdates()
-	sumMiddles := 0
-	for _, update := range correctUpdates {
-		// extract center page
-		middlePage := update[len(update)/2]
-		sumMiddles += middlePage
-	}
-	fmt.Println("3.2:", sumMiddles)
+	sumMiddles := sumUpdateMiddlePages(correctUpdates)
+	fmt.Println("5.1:", sumMiddles)
+
+	// part 2
+	repairedUpdates := rules.findAndRepairUpdates()
+	sumMiddles = sumUpdateMiddlePages(repairedUpdates)
+	fmt.Println("5.2:", sumMiddles)
 }
