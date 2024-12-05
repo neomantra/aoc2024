@@ -153,7 +153,6 @@ func (b *Board) CountX_MAS() int {
 			if testMS(ul, lr) && testMS(ll, ur) {
 				count += 1
 			}
-			fmt.Println(x, y, count)
 		}
 	}
 	return count
@@ -176,8 +175,8 @@ func main() {
 	}
 
 	// part 1
-	fmt.Println("3.1:", board.CountWord("XMAS"))
+	fmt.Println("4.1:", board.CountWord("XMAS"))
 
 	// part 2
-	fmt.Println("3.2:", board.CountX_MAS())
+	fmt.Println("4.2:", board.CountX_MAS())
 }
