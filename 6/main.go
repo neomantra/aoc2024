@@ -4,7 +4,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -16,7 +15,7 @@ type Point struct{ X, Y int }
 
 type Maze struct {
 	Floorplan [][]byte // Y is array index, X is byte index sp [Y][X]
-	Coloring  [][]byte
+	Coloring  [][]Color
 	Extent    Point
 	GuardPos  Point
 }
@@ -24,17 +23,62 @@ type Maze struct {
 ///////////////////////////////////////////////////////////////////////////////
 
 const (
-	GuardUp    = byte('^')
-	GuardDown  = byte('v')
-	GuardLeft  = byte('<')
-	GuardRight = byte('>')
-	Obstacle   = byte('#')
-	Emptiness  = byte('.') // Buddha says that the emptiness of the maze is what gives it its function.
-	Blank      = byte(' ')
-	XSpot      = byte('X')
+	GuardUp     = byte('^')
+	GuardDown   = byte('v')
+	GuardLeft   = byte('<')
+	GuardRight  = byte('>')
+	Obstacle    = byte('#')
+	Obstruction = byte('O')
+	Emptiness   = byte('.') // Buddha says that the emptiness of the maze is what gives it its function.
+	Blank       = byte(' ')
+	HMove       = byte('-')
+	VMove       = byte('|')
+	HVMove      = byte('+')
 )
 
 var guardRunes = []byte{GuardUp, GuardDown, GuardLeft, GuardRight}
+
+type Color byte
+
+const (
+	ColorNone  = 0
+	ColorUp    = 1
+	ColorDown  = 2
+	ColorLeft  = 4
+	ColorRight = 8
+	ColorHoriz = ColorLeft | ColorRight
+	ColorVert  = ColorUp | ColorDown
+	ColorAll   = ColorUp | ColorDown | ColorLeft | ColorRight
+)
+
+func ColorFromGuard(g byte) Color {
+	switch g {
+	case GuardUp:
+		return ColorUp
+	case GuardDown:
+		return ColorDown
+	case GuardLeft:
+		return ColorLeft
+	case GuardRight:
+		return ColorRight
+	default:
+		return ColorNone
+	}
+}
+
+func (c Color) AsColorGlyph() byte {
+	h := (c & ColorHoriz) != 0
+	v := (c & ColorVert) != 0
+	if h && !v {
+		return HMove
+	} else if !h && v {
+		return VMove
+	} else if h && v {
+		return HVMove
+	} else {
+		return Blank
+	}
+}
 
 func isGuard(c byte) bool {
 	if c == GuardUp || c == GuardDown || c == GuardLeft || c == GuardRight {
@@ -44,7 +88,7 @@ func isGuard(c byte) bool {
 }
 
 func isObstacle(c byte) bool {
-	return c == Obstacle
+	return c == Obstacle || c == Obstruction
 }
 
 // rotates the guard right (clockwise) 90 degrees
@@ -91,6 +135,13 @@ func findGuard(line string) int {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+func (m *Maze) ClearColoring() {
+	m.Coloring = nil
+	for _, line := range m.Floorplan {
+		m.Coloring = append(m.Coloring, make([]Color, len(line)))
+	}
+}
+
 func NewMaze(mazeStr string) *Maze {
 	maze := &Maze{
 		GuardPos: Point{X: -1, Y: -1},
@@ -100,7 +151,6 @@ func NewMaze(mazeStr string) *Maze {
 		maze.Extent.Y++
 		maze.Extent.X = len(line) // assume all lines are same length
 		maze.Floorplan = append(maze.Floorplan, []byte(line))
-		maze.Coloring = append(maze.Coloring, bytes.Repeat([]byte{Emptiness}, len(line)))
 
 		// find guard on floorplan
 		if i := findGuard(line); i != -1 {
@@ -111,6 +161,9 @@ func NewMaze(mazeStr string) *Maze {
 	if maze.GuardPos.X == -1 || maze.GuardPos.Y == -1 {
 		return nil // no guard!
 	}
+
+	maze.ClearColoring()
+
 	return maze
 }
 
@@ -118,7 +171,7 @@ func (m *Maze) GetColorCount() int {
 	count := 0
 	for _, line := range m.Coloring {
 		for _, c := range line {
-			if c == XSpot {
+			if c != ColorNone {
 				count++
 			}
 		}
@@ -126,44 +179,69 @@ func (m *Maze) GetColorCount() int {
 	return count
 }
 
+// colors the maze at a point,
+// assumes point is in-bounds
+func (m *Maze) color(p Point, guardChar byte) Color {
+	c := m.Coloring[p.Y][p.X]
+	c |= ColorFromGuard(guardChar)
+	m.Coloring[p.Y][p.X] = c
+	return c
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 // iterates the guard walking through the maze, coloring the map
-func (m *Maze) WalkGuardAndColor() {
+// Returns false if there is a loop, true if the guard exits
+func (m *Maze) WalkGuardAndColor() bool {
 	// mark current position
-	m.Coloring[m.GuardPos.Y][m.GuardPos.X] = 'X'
-	done := false
-	for !done {
+	m.ClearColoring()
+	spins := 0
+	for spins < 4 {
 		// look at the guard position
-		gpos := m.GuardPos
-		guardChar := m.Floorplan[gpos.Y][gpos.X]
+		guardChar := m.Floorplan[m.GuardPos.Y][m.GuardPos.X]
+		newPos := m.GuardPos
 		switch guardChar {
 		case GuardUp:
-			gpos.Y--
+			newPos.Y--
 		case GuardDown:
-			gpos.Y++
+			newPos.Y++
 		case GuardLeft:
-			gpos.X--
+			newPos.X--
 		case GuardRight:
-			gpos.X++
+			newPos.X++
 		default:
 			panic("bad guard position")
 		}
-		if !m.IsInBounds(gpos) {
-			return // guard exited
-		} else if m.IsObstacle(gpos) {
+
+		// bounds check
+		if !m.IsInBounds(newPos) {
+			return true // guard exited
+		}
+
+		// have we visited here before?
+		guardColor := ColorFromGuard(guardChar)
+		prevNewColor := m.Coloring[newPos.Y][newPos.X]
+		if (guardColor | prevNewColor) == 0 {
+			return false // we've been here before, so we're done
+		}
+		m.color(m.GuardPos, guardChar) // mark this square as visited
+
+		// hit obstacle?
+		if m.IsObstacle(newPos) {
 			// guard hit an obstacle, so turn right 90 and continue
 			m.Floorplan[m.GuardPos.Y][m.GuardPos.X] = RotateGuard(guardChar)
-			// TODO track infinite loops
+			spins += 1
 		} else {
-			// guard advances...
+			// Guard advances...
 			// Empty current spot, color new spot, and move guard
 			m.Floorplan[m.GuardPos.Y][m.GuardPos.X] = Emptiness
-			m.Coloring[gpos.Y][gpos.X] = XSpot
-			m.Floorplan[gpos.Y][gpos.X] = guardChar
-			m.GuardPos = gpos
+			m.Floorplan[newPos.Y][newPos.X] = guardChar
+			m.color(newPos, guardChar) // mark new square as visited
+			m.GuardPos = newPos
+			spins = 0
 		}
 	}
+	return false // spinning endlessly
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -187,8 +265,11 @@ func main() {
 		fmt.Printf("%s\n", line)
 	}
 	fmt.Println("")
-	for _, line := range maze.Coloring {
-		fmt.Printf("%s\n", line)
+	for _, colors := range maze.Coloring {
+		for _, c := range colors {
+			fmt.Printf("%c", c.AsColorGlyph())
+		}
+		fmt.Println()
 	}
 	fmt.Println("6.1:", maze.GetColorCount())
 }
