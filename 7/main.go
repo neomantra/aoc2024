@@ -33,7 +33,7 @@ func (e Equation) Calc(ops []Op) (int, error) {
 ///////////////////////////////////////////////////////////////////////////////
 
 type Op interface {
-	Glyph() byte
+	Glyph() string
 	Apply(a, b int) int
 }
 
@@ -41,7 +41,7 @@ type Op interface {
 
 type AddOp struct{}
 
-func (op AddOp) Glyph() byte { return '+' }
+func (op AddOp) Glyph() string { return "+" }
 
 func (op AddOp) Apply(a, b int) int { return a + b }
 
@@ -49,46 +49,59 @@ func (op AddOp) Apply(a, b int) int { return a + b }
 
 type MulOp struct{}
 
-func (op MulOp) Glyph() byte { return '*' }
+func (op MulOp) Glyph() string { return "*" }
 
 func (op MulOp) Apply(a, b int) int { return a * b }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-var allOps = []Op{AddOp{}, MulOp{}}
-var allOpsBase = len(allOps)
+type ConcatOp struct{}
+
+func (op ConcatOp) Glyph() string { return "||" }
+
+func (op ConcatOp) Apply(a, b int) int {
+	newA, newB := a, b
+	for newB > 0 {
+		newA *= 10
+		newB /= 10
+	}
+	return newA + b
+}
+
+///////////////////////////////////////////////////////////////////////////////
 
 // permuteOps returns a slice of operators that correspond to the given seed
 // The seed is a base_len(allOps) number, where each digit represents an operator
-func permuteOps(seed int, length int) []Op {
-	if seed < 0 || length <= 0 {
+func permuteOps(seed int, length int, opsSet []Op) []Op {
+	if seed < 0 || length <= 0 || len(opsSet) == 0 {
 		return nil
 	}
-	ceiling := int(math.Pow(float64(allOpsBase), float64(length)))
+	opsBase := len(opsSet)
+	ceiling := int(math.Pow(float64(opsBase), float64(length)))
 	if seed > ceiling {
 		return nil // overflow
 	}
 	ops := make([]Op, length)
 	for i := 0; i < length; i++ {
-		allOpsIndex := seed % allOpsBase
-		seed /= allOpsBase
-		ops[i] = allOps[allOpsIndex]
+		allOpsIndex := seed % opsBase
+		seed /= opsBase
+		ops[i] = opsSet[allOpsIndex]
 	}
 	return ops
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// Returns the set of operators that satisfy the Equation
+// Returns the set of operators from opSet that satisfy the Equation
 // Returns nil if none exist
-func FindOps(e Equation) []Op {
+func FindOps(e Equation, opsSet []Op) []Op {
 	if len(e.Args) == 0 {
 		return nil
 	}
 	// we will permute all the operators, returning the first successful set
 	i := 0
 	for {
-		ops := permuteOps(i, len(e.Args)-1)
+		ops := permuteOps(i, len(e.Args)-1, opsSet)
 		if ops == nil {
 			return nil // we are out of permutations
 		}
@@ -134,18 +147,29 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error reading file: %s\n", err.Error())
 		os.Exit(1)
 	}
-
-	// part 1
 	equations := NewEquations(string(equationData))
 	if equations == nil {
 		fmt.Fprintf(os.Stderr, "Bad equation data\n")
 		os.Exit(1)
 	}
+
+	// part 1
+	opsSet := []Op{AddOp{}, MulOp{}}
 	sum := 0
 	for _, e := range equations {
-		if ops := FindOps(e); ops != nil {
+		if ops := FindOps(e, opsSet); ops != nil {
 			sum += e.Result
 		}
 	}
 	fmt.Println("7.1:", sum)
+
+	// part 2
+	opsSet = []Op{AddOp{}, MulOp{}, ConcatOp{}}
+	sum = 0
+	for _, e := range equations {
+		if ops := FindOps(e, opsSet); ops != nil {
+			sum += e.Result
+		}
+	}
+	fmt.Println("7.2:", sum)
 }
