@@ -117,10 +117,10 @@ func (m *Maze) IsInBounds(p Point) bool {
 }
 
 func (m *Maze) IsObstacle(p Point) bool {
-	if p.X >= 0 && p.X < m.Extent.X && p.Y >= 0 && p.Y < m.Extent.Y {
+	if m.IsInBounds(p) {
 		return isObstacle(m.Floorplan[p.Y][p.X])
 	}
-	return true // out of bounds is an obstacle
+	return false // out of bounds is not an obstacle
 }
 
 // Returns location of guard in line, or -1 if not found
@@ -167,6 +167,19 @@ func NewMaze(mazeStr string) *Maze {
 	return maze
 }
 
+func (m *Maze) Clone() *Maze {
+	newMaze := &Maze{
+		Extent:   m.Extent,
+		GuardPos: m.GuardPos,
+	}
+	for _, line := range m.Floorplan {
+		newMaze.Floorplan = append(newMaze.Floorplan,
+			append([]byte{}, line...)) // deep copy
+	}
+	newMaze.ClearColoring()
+	return newMaze
+}
+
 func (m *Maze) GetColorCount() int {
 	count := 0
 	for _, line := range m.Coloring {
@@ -179,13 +192,32 @@ func (m *Maze) GetColorCount() int {
 	return count
 }
 
-// colors the maze at a point,
-// assumes point is in-bounds
-func (m *Maze) color(p Point, guardChar byte) Color {
-	c := m.Coloring[p.Y][p.X]
-	c |= ColorFromGuard(guardChar)
-	m.Coloring[p.Y][p.X] = c
-	return c
+// Returns the color at a point, no bounds check
+func (m *Maze) GetColor(pt Point) Color {
+	return m.Coloring[pt.Y][pt.X]
+}
+
+// Sets the color at a point, no bounds check
+func (m *Maze) SetColor(pt Point, color Color) {
+	m.Coloring[pt.Y][pt.X] = color
+}
+
+// Blends the colors the maze at a point, returning the new color
+// No bounds check
+func (m *Maze) BlendColor(pt Point, mixColor Color) Color {
+	newColor := m.Coloring[pt.Y][pt.X] | mixColor
+	m.SetColor(pt, newColor)
+	return newColor
+}
+
+// Get floor tile at a point, no bounds check
+func (m *Maze) GetFloor(pt Point) byte {
+	return m.Floorplan[pt.Y][pt.X]
+}
+
+// Sets the floor tile at a point, no bounds check
+func (m *Maze) SetFloor(pt Point, tile byte) {
+	m.Floorplan[pt.Y][pt.X] = tile
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -195,10 +227,9 @@ func (m *Maze) color(p Point, guardChar byte) Color {
 func (m *Maze) WalkGuardAndColor() bool {
 	// mark current position
 	m.ClearColoring()
-	spins := 0
-	for spins < 4 {
+	for {
 		// look at the guard position
-		guardChar := m.Floorplan[m.GuardPos.Y][m.GuardPos.X]
+		guardChar := m.GetFloor(m.GuardPos)
 		newPos := m.GuardPos
 		switch guardChar {
 		case GuardUp:
@@ -220,28 +251,46 @@ func (m *Maze) WalkGuardAndColor() bool {
 
 		// have we visited here before?
 		guardColor := ColorFromGuard(guardChar)
-		prevNewColor := m.Coloring[newPos.Y][newPos.X]
-		if (guardColor | prevNewColor) == 0 {
+		prevNewColor := m.GetColor(newPos)
+		if (guardColor & prevNewColor) != 0 {
 			return false // we've been here before, so we're done
 		}
-		m.color(m.GuardPos, guardChar) // mark this square as visited
+		m.BlendColor(m.GuardPos, guardColor)
 
 		// hit obstacle?
 		if m.IsObstacle(newPos) {
 			// guard hit an obstacle, so turn right 90 and continue
-			m.Floorplan[m.GuardPos.Y][m.GuardPos.X] = RotateGuard(guardChar)
-			spins += 1
+			m.SetFloor(m.GuardPos, RotateGuard(guardChar))
 		} else {
 			// Guard advances...
 			// Empty current spot, color new spot, and move guard
-			m.Floorplan[m.GuardPos.Y][m.GuardPos.X] = Emptiness
-			m.Floorplan[newPos.Y][newPos.X] = guardChar
-			m.color(newPos, guardChar) // mark new square as visited
+			m.SetFloor(m.GuardPos, Emptiness)
+			m.SetFloor(newPos, guardChar)
+			m.BlendColor(newPos, guardColor) // mark new square as visited
 			m.GuardPos = newPos
-			spins = 0
 		}
 	}
-	return false // spinning endlessly
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *Maze) SearchObstructionPositions() int {
+	// count the number of obstruction positions
+	infCount := 0
+	for y := 0; y < m.Extent.Y; y++ {
+		for x := 0; x < m.Extent.X; x++ {
+			if x == m.GuardPos.X && y == m.GuardPos.Y {
+				continue // we don't put one where the guard starts
+			}
+			// place obstruction at X/Y and see if guard can walk through
+			newMaze := m.Clone()
+			newMaze.SetFloor(Point{X: x, Y: y}, Obstruction)
+			if !newMaze.WalkGuardAndColor() {
+				infCount++
+			}
+		}
+	}
+	return infCount
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -253,13 +302,13 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error reading file: %s\n", err.Error())
 		os.Exit(1)
 	}
+
+	// part 1
 	maze := NewMaze(string(mazeData))
 	if maze == nil {
 		fmt.Fprintf(os.Stderr, "Bad maze board\n")
 		os.Exit(1)
 	}
-
-	// part 1
 	maze.WalkGuardAndColor()
 	for _, line := range maze.Floorplan {
 		fmt.Printf("%s\n", line)
@@ -272,4 +321,9 @@ func main() {
 		fmt.Println()
 	}
 	fmt.Println("6.1:", maze.GetColorCount())
+
+	// part 2
+	maze = NewMaze(string(mazeData)) // reload
+	fmt.Println("6.2:", maze.SearchObstructionPositions())
+
 }
