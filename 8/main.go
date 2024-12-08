@@ -72,16 +72,34 @@ func (c *City) setAntinode(x, y int) bool {
 	return true
 }
 
-func (c *City) MarkAntinodes(a, b Point) {
+func (c *City) MarkAntinodes(a, b Point, oneStep bool) {
 	// an antinode occurs at any point that is perfectly in line with
 	// two antennas of the same frequency - but only
 	// when one of the antennas is twice as far away as the other.
+	if !oneStep {
+		// with harmonics enabled, start with antennae themselves
+		c.setAntinode(a.X, a.Y)
+		c.setAntinode(b.X, b.Y)
+
+	}
+
 	xDist, yDist := b.X-a.X, b.Y-a.Y
-	c.setAntinode(a.X-xDist, a.Y-yDist)
-	c.setAntinode(b.X+xDist, b.Y+yDist)
+	ax, ay, bx, by := a.X, a.Y, b.X, b.Y
+	for {
+		ax -= xDist
+		ay -= yDist
+		bx += xDist
+		by += yDist
+		aInBounds := c.setAntinode(ax, ay)
+		bInBounds := c.setAntinode(bx, by)
+		if oneStep || !(aInBounds || bInBounds) {
+			return
+		}
+	}
+
 }
 
-func (c *City) FindAntinodes() {
+func (c *City) FindAntinodes(oneStep bool) {
 	// march through each cell, if it's an antenna, try to find antinodes of all remaining antennas
 	// we keep track of scanned frequencies to not double count
 	c.ClearAntinodes()
@@ -95,14 +113,14 @@ func (c *City) FindAntinodes() {
 			// handle the rest of this row
 			for x2 := x1 + 1; x2 <= c.maxX; x2++ {
 				if c.antennas[y1][x2] == freq {
-					c.MarkAntinodes(Point{x1, y1}, Point{x2, y1})
+					c.MarkAntinodes(Point{x1, y1}, Point{x2, y1}, oneStep)
 				}
 			}
 			// handle the rest of the rows
 			for y2 := y1 + 1; y2 <= c.maxY; y2++ {
 				for x2 := 0; x2 <= c.maxX; x2++ {
 					if c.antennas[y2][x2] == freq {
-						c.MarkAntinodes(Point{x1, y1}, Point{x2, y2})
+						c.MarkAntinodes(Point{x1, y1}, Point{x2, y2}, oneStep)
 					}
 				}
 			}
@@ -153,7 +171,13 @@ func main() {
 	}
 
 	// part 1
-	city.FindAntinodes()
+	city.FindAntinodes(true)
 	fmt.Println(city.View())
 	fmt.Println("8.1:", city.GetAntinodeCount())
+
+	// part 2
+	city = NewCity(string(cityData))
+	city.FindAntinodes(false)
+	fmt.Println(city.View())
+	fmt.Println("8.2:", city.GetAntinodeCount())
 }
