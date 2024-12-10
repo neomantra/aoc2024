@@ -48,26 +48,35 @@ func (isld *Island) GetCellVal(pt Point) byte {
 
 // Returns the total score from the hike point
 // Returns 0 if the hike is unsuccessful
-func (isld *Island) hikeStep(pt Point, prevVal byte) []Point {
+func (isld *Island) hikeStep(pt Point, prevVal byte) ([]Point, int) {
 	if !isld.IsInBounds(pt) {
-		return nil
+		return nil, 0
 	}
 
 	thisVal := isld.GetCellVal(pt)
 	diff := thisVal - prevVal
 	if diff != 1 {
-		return nil // too big of a step or receding, so didin't make it
+		return nil, 0 // too big of a step or receding, so didin't make it
 	}
 
 	if thisVal == '9' {
-		return []Point{pt} // we reached a height
+		return []Point{pt}, 1 // we reached a height
 	}
 
-	var foundPoints []Point
-	foundPoints = append(foundPoints, isld.hikeStep(Point{pt.X + 0, pt.Y - 1}, thisVal)...) // up
-	foundPoints = append(foundPoints, isld.hikeStep(Point{pt.X + 0, pt.Y + 1}, thisVal)...) // down
-	foundPoints = append(foundPoints, isld.hikeStep(Point{pt.X - 1, pt.Y + 0}, thisVal)...) // left
-	foundPoints = append(foundPoints, isld.hikeStep(Point{pt.X + 1, pt.Y + 0}, thisVal)...) // right
+	var foundPoints, fp []Point
+	totalRating, rating := 0, 0
+	fp, rating = isld.hikeStep(Point{pt.X + 0, pt.Y - 1}, thisVal) // up
+	totalRating += rating
+	foundPoints = append(foundPoints, fp...)
+	fp, rating = isld.hikeStep(Point{pt.X + 0, pt.Y + 1}, thisVal) // down
+	totalRating += rating
+	foundPoints = append(foundPoints, fp...)
+	fp, rating = isld.hikeStep(Point{pt.X - 1, pt.Y + 0}, thisVal) // left
+	totalRating += rating
+	foundPoints = append(foundPoints, fp...)
+	fp, rating = isld.hikeStep(Point{pt.X + 1, pt.Y + 0}, thisVal) // right
+	totalRating += rating
+	foundPoints = append(foundPoints, fp...)
 
 	// simple unique
 	foundPointMap := make(map[Point]bool)
@@ -78,23 +87,24 @@ func (isld *Island) hikeStep(pt Point, prevVal byte) []Point {
 	for k, _ := range foundPointMap {
 		foundPoints = append(foundPoints, k)
 	}
-	return foundPoints
+	return foundPoints, totalRating
 }
 
-func (isld *Island) SumAllTrailheadScores() int {
-	sum := 0
+func (isld *Island) SumAllTrailheadScores() (int, int) {
+	totalScore, totalRating := 0, 0
 	for y := 0; y < len(isld.topoMap); y++ {
 		row := isld.topoMap[y]
 		for x := 0; x < len(row); x++ {
 			cell := row[x]
 			if cell == '0' {
 				// only handle trailheads
-				foundPoints := isld.hikeStep(Point{X: x, Y: y}, '0'-1)
-				sum += len(foundPoints)
+				foundPoints, rating := isld.hikeStep(Point{X: x, Y: y}, '0'-1)
+				totalScore += len(foundPoints)
+				totalRating += rating
 			}
 		}
 	}
-	return sum
+	return totalScore, totalRating
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -125,5 +135,9 @@ func main() {
 
 	// part 1
 	fmt.Println(isld.TopoMapView())
-	fmt.Println("10.1:", isld.SumAllTrailheadScores())
+	score, rating := isld.SumAllTrailheadScores()
+	fmt.Println("10.1:", score)
+
+	// part 2
+	fmt.Println("10.1:", rating)
 }
