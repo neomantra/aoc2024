@@ -201,7 +201,7 @@ func main() {
 	fs.DefragBlock()
 	fmt.Println("9.1:", fs.CalcChecksum())
 
-	// part 1
+	// part 2
 	fs = NewFilesystem(string(diskMapData))
 	//fmt.Println(fs.View())
 	fs.DefragWholeFile()

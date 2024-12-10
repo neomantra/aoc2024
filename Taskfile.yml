@@ -24,15 +24,17 @@ tasks:
     desc: 'Build all the things'
     deps: [tidy]
     cmds:
-      - go build -o bin/aoc2024-1 1/main.go
-      - go build -o bin/aoc2024-2 2/main.go
-      - go build -o bin/aoc2024-3 3/main.go
-      - go build -o bin/aoc2024-4 4/main.go
-      - go build -o bin/aoc2024-5 5/main.go
-      - go build -o bin/aoc2024-6 6/main.go
-      - go build -o bin/aoc2024-7 7/main.go
-      - go build -o bin/aoc2024-8 8/main.go
-      - go build -o bin/aoc2024-9 9/main.go
+      - go build -o bin/aoc2024-1   1/main.go
+      - go build -o bin/aoc2024-2   2/main.go
+      - go build -o bin/aoc2024-3   3/main.go
+      - go build -o bin/aoc2024-4   4/main.go
+      - go build -o bin/aoc2024-5   5/main.go
+      - go build -o bin/aoc2024-6   6/main.go
+      - go build -o bin/aoc2024-7   7/main.go
+      - go build -o bin/aoc2024-8   8/main.go
+      - go build -o bin/aoc2024-9   9/main.go
+      - go build -o bin/aoc2024-9   9/main.go
+      - go build -o bin/aoc2024-10 10/main.go
 
   clean:
     desc: 'Clean all the things'
@@ -46,32 +48,35 @@ tasks:
       - rm bin/aoc2024-7
       - rm bin/aoc2024-8
       - rm bin/aoc2024-9
+      - rm bin/aoc2024-10
 
   test:
     desc: 'Test all the things'
     deps: [build]
     cmds:
-      - go run 1/main.go 1/1.test.txt
-      - go run 2/main.go 2/2.test.txt
-      - go run 3/main.go 3/3.test.txt
-      - go run 3/main.go 3/3.test2.txt
-      - go run 4/main.go 4/4.test.txt
-      - go run 5/main.go 5/5.test.txt
-      - go run 6/main.go 6/6.test.txt
-      - go run 7/main.go 7/7.test.txt
-      - go run 8/main.go 8/8.test.txt
-      - go run 9/main.go 9/9.test.txt
+      - go run  1/main.go  1/1.test.txt
+      - go run  2/main.go  2/2.test.txt
+      - go run  3/main.go  3/3.test.txt
+      - go run  3/main.go  3/3.test2.txt
+      - go run  4/main.go  4/4.test.txt
+      - go run  5/main.go  5/5.test.txt
+      - go run  6/main.go  6/6.test.txt
+      - go run  7/main.go  7/7.test.txt
+      - go run  8/main.go  8/8.test.txt
+      - go run  9/main.go  9/9.test.txt
+      - go run 10/main.go 10/10.test.txt
 
   run:
     desc: 'Run all the things'
     deps: [build]
     cmds:
-      - go run 1/main.go 1/1.txt
-      - go run 2/main.go 2/2.txt
-      - go run 3/main.go 3/3.txt
-      - go run 4/main.go 4/4.txt
-      - go run 5/main.go 5/5.txt
-      - go run 6/main.go 6/6.txt
-      - go run 7/main.go 7/7.txt
-      - go run 8/main.go 8/8.txt
-      - go run 9/main.go 9/9.txt
+      - go run  1/main.go   1/1.txt
+      - go run  2/main.go   2/2.txt
+      - go run  3/main.go   3/3.txt
+      - go run  4/main.go   4/4.txt
+      - go run  5/main.go   5/5.txt
+      - go run  6/main.go   6/6.txt
+      - go run  7/main.go   7/7.txt
+      - go run  8/main.go   8/8.txt
+      - go run  9/main.go   9/9.txt
+      - go run 10/main.go 10/10.txt
