@@ -83,6 +83,16 @@
             "args": [
                 "${workspaceFolder}/8/8.test.txt"
             ]
+        },
+        {
+            "name": "Debug 9",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/9/main.go",
+            "args": [
+                "${workspaceFolder}/9/9.test.txt"
+            ]
         }
-     ]
+    ]
 }
