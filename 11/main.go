@@ -1,5 +1,5 @@
-// https://adventofcode.com/2024/day/10
-// go run 10/main.go 10/10.txt
+// https://adventofcode.com/2024/day/11
+// go run 11/main.go 11/11.txt
 
 package main
 
