@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"regexp"
 	"strconv"
@@ -12,6 +13,8 @@ import (
 )
 
 type Point struct{ X, Y int }
+
+type PointF64 struct{ X, Y float64 }
 
 type Robot struct {
 	Pos Point
@@ -31,34 +34,6 @@ func NewRobots(puzzle string) []Robot {
 	}
 	return robots
 }
-
-func RobotHeatMap(robots []Robot, roomSize Point) string {
-	heatMap := make([][]int, roomSize.Y)
-	for y := 0; y < roomSize.Y; y++ {
-		heatMap[y] = make([]int, roomSize.X)
-		for x := 0; x < roomSize.X; x++ {
-			heatMap[y][x] = 0
-		}
-	}
-	for _, robot := range robots {
-		heatMap[robot.Pos.Y][robot.Pos.X] += 1
-	}
-	var sb strings.Builder
-	for y := 0; y < roomSize.Y; y++ {
-		for x := 0; x < roomSize.X; x++ {
-			val := heatMap[y][x] % 10
-			if val == 0 {
-				sb.WriteByte('.')
-			} else {
-				sb.WriteString(strconv.Itoa(val))
-			}
-		}
-		sb.WriteByte('\n')
-	}
-	return sb.String()
-}
-
-///////////////////////////////////////////////////////////////////////////////
 
 func Operate(robots []Robot, roomSize Point, steps int) {
 	for step := 0; step < steps; step++ {
@@ -80,6 +55,8 @@ func Operate(robots []Robot, roomSize Point, steps int) {
 		}
 	}
 }
+
+///////////////////////////////////////////////////////////////////////////////
 
 const UL, UR, LL, LR, NOPE = 1, 2, 3, 4, 0
 
@@ -109,6 +86,87 @@ func QuadrantScores(robots []Robot, roomSize Point) (ul int, ur int, ll int, lr 
 
 ///////////////////////////////////////////////////////////////////////////////
 
+type RobotHeatMap struct {
+	Map      [][]int
+	RoomSize Point
+}
+
+func MakeRobotHeatMap(robots []Robot, roomSize Point) RobotHeatMap {
+	hm := RobotHeatMap{
+		Map:      make([][]int, roomSize.Y),
+		RoomSize: roomSize,
+	}
+	for y := 0; y < roomSize.Y; y++ {
+		hm.Map[y] = make([]int, roomSize.X)
+		for x := 0; x < roomSize.X; x++ {
+			hm.Map[y][x] = 0
+		}
+	}
+	for _, robot := range robots {
+		hm.Map[robot.Pos.Y][robot.Pos.X] += 1
+	}
+	return hm
+}
+
+func (hm RobotHeatMap) View() string {
+	var sb strings.Builder
+	for y := 0; y < hm.RoomSize.Y; y++ {
+		for x := 0; x < hm.RoomSize.X; x++ {
+			val := hm.Map[y][x] % 10
+			if val == 0 {
+				sb.WriteByte(' ')
+			} else {
+				sb.WriteString(strconv.Itoa(val))
+			}
+		}
+		sb.WriteByte('\n')
+	}
+	return sb.String()
+}
+
+// returns meanVal, centroid, variance
+func (hm RobotHeatMap) GetMetrics() (float64, PointF64, PointF64) {
+	// calculate centroid
+	var centroid PointF64
+	var meanVal, count float64
+	for y := 0; y < hm.RoomSize.Y; y++ {
+		for x := 0; x < hm.RoomSize.X; x++ {
+			val := float64(hm.Map[y][x])
+			if val == 0 {
+				continue
+			}
+			centroid.X += float64(x)
+			centroid.Y += float64(y)
+			meanVal += val
+			count++
+		}
+	}
+	centroid.X /= count
+	centroid.Y /= count
+	meanVal /= count
+
+	// calculate center of mass
+	var variance PointF64
+	for y := 0; y < hm.RoomSize.Y; y++ {
+		for x := 0; x < hm.RoomSize.X; x++ {
+			val := float64(hm.Map[y][x])
+			if val == 0 {
+				continue
+			}
+			dx := val * (float64(x) - centroid.X)
+			dy := val * (float64(y) - centroid.Y)
+			variance.X += dx * dx
+			variance.Y += dy * dy
+		}
+	}
+	variance.X = math.Sqrt(variance.X)
+	variance.Y = math.Sqrt(variance.Y)
+
+	return meanVal, centroid, variance
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 func main() {
 	// Open and read data file
 	robotsData, err := os.ReadFile(os.Args[1])
@@ -125,11 +183,24 @@ func main() {
 	}
 	roomSize := Point{101, 103}
 	Operate(robots, roomSize, 100)
-
-	fmt.Println(RobotHeatMap(robots, roomSize))
+	// fmt.Println(MakeRobotHeatMap(robots, roomSize).View())
 	ul, ur, ll, lr := QuadrantScores(robots, roomSize)
 	fmt.Println("ul:", ul, "ur:", ur, "ll:", ll, "lr:", lr)
 
 	safetyFactor := ul * ur * ll * lr
 	fmt.Println("14.1:", safetyFactor)
+
+	// part 2
+	robots = NewRobots(string(robotsData))
+	stepsToTree := 0
+	for {
+		hm := MakeRobotHeatMap(robots, roomSize)
+		_, _, stddev := hm.GetMetrics()
+		if stddev.X < 450 && stddev.Y < 450 { // emperically determined
+			break
+		}
+		Operate(robots, roomSize, 1)
+		stepsToTree++
+	}
+	fmt.Print(MakeRobotHeatMap(robots, roomSize).View(), "\n", stepsToTree, "\n")
 }
