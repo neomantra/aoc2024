@@ -4,12 +4,21 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"math"
+	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/NimbleMarkets/ollamatea"
+	"github.com/ollama/ollama/api"
+	ollama "github.com/ollama/ollama/api"
+	ansitoimage "github.com/pavelpatrin/go-ansi-to-image"
 )
 
 type Point struct{ X, Y int }
@@ -167,6 +176,53 @@ func (hm RobotHeatMap) GetMetrics() (float64, PointF64, PointF64) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+func DoesOllamaThinkTheresAChristmasTrees(hm RobotHeatMap, stepNum int) (string, bool) {
+	// Use OllamaTeas's machinery to convert to image
+	hmView := hm.View()
+	convertConfig := ansitoimage.DefaultConfig
+	convertConfig.PageRows = hm.RoomSize.Y
+	convertConfig.PageCols = hm.RoomSize.X
+	pngBytes, err := ollamatea.ConvertTerminalTextToImage(string(hmView), &convertConfig)
+
+	ollamaURL, err := url.Parse("http://localhost:11434")
+	if err != nil {
+		return "", false
+	}
+
+	systemPrompt := `"Does the supplied image contain framed image of the outline of an evergreen tree?" 
+	Include YES or NO and a brief reason why.  You must be absolutely sure, you cannot be wrong about this. 
+	Christmas trees are evergreen trees and may have lights and ornaments but that is not necessary.`
+
+	ollamaClient := ollama.NewClient(ollamaURL, http.DefaultClient)
+	req := &ollama.GenerateRequest{
+		Model:  "llama3.2-vision:11b-instruct-q8_0", //"llama3.2-vision",
+		Prompt: "does the image contain the shape of an evergreen christmas tree?",
+		System: systemPrompt,
+		Images: []api.ImageData{pngBytes},
+	}
+	os.WriteFile(fmt.Sprintf("out.%d.png", stepNum), pngBytes, 0644)
+
+	var sb strings.Builder
+	respFunc := func(resp ollama.GenerateResponse) error {
+		sb.WriteString(resp.Response)
+		return nil
+	}
+
+	ctx := context.Background()
+	err = ollamaClient.Generate(ctx, req, respFunc)
+	if err != nil {
+		return "", false
+	}
+
+	response := sb.String()
+	if strings.Contains(strings.ToUpper(response), "YES") {
+		return response, true
+	}
+	return response, false
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 func main() {
 	// Open and read data file
 	robotsData, err := os.ReadFile(os.Args[1])
@@ -203,4 +259,27 @@ func main() {
 		stepsToTree++
 	}
 	fmt.Print(MakeRobotHeatMap(robots, roomSize).View(), "\n", stepsToTree, "\n")
+
+	// part 2 Ollama-version
+	fmt.Print("\nOllama version\n")
+	robots = NewRobots(string(robotsData))
+	// CHEATING!  =) Stepping forward a bunch since we knew answer above
+	llmStepsToTree := stepsToTree - 3
+	Operate(robots, roomSize, llmStepsToTree)
+	for {
+		hm := MakeRobotHeatMap(robots, roomSize)
+
+		start := time.Now()
+		response, isTree := DoesOllamaThinkTheresAChristmasTrees(hm, llmStepsToTree)
+		duration := time.Since(start)
+
+		fmt.Printf("%s\n\nStep %d Ollama took %0.2fs\n\n",
+			response, llmStepsToTree, duration.Seconds())
+		if isTree {
+			break
+		}
+		Operate(robots, roomSize, 1)
+		llmStepsToTree++
+	}
+	fmt.Println("14.2llm:", llmStepsToTree)
 }
