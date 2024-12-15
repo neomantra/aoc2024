@@ -39,6 +39,7 @@ tasks:
       - go build -o bin/aoc2024-12 12/main.go
       - go build -o bin/aoc2024-13 13/main.go
       - go build -o bin/aoc2024-14 14/main.go
+      - go build -o bin/aoc2024-15 15/main.go
 
   clean:
     desc: 'Clean all the things'
@@ -57,6 +58,7 @@ tasks:
       - rm bin/aoc2024-12
       - rm bin/aoc2024-13
       - rm bin/aoc2024-14
+      - rm bin/aoc2024-15
 
   test:
     desc: 'Test all the things'
@@ -78,6 +80,7 @@ tasks:
       - go run 12/main.go 12/12.test.txt
       - go run 13/main.go 13/13.test.txt
       - go run 14/main.go 14/14.test.txt
+      - go run 14/main.go 15/15.test.txt
 
   run:
     desc: 'Run all the things'
@@ -97,3 +100,4 @@ tasks:
       - go run 12/main.go 12/12.txt
       - go run 13/main.go 13/13.txt
       - go run 14/main.go 14/14.txt
+      - go run 15/main.go 15/15.txt
