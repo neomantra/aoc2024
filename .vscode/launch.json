@@ -161,7 +161,7 @@
             "mode": "debug",
             "program": "${workspaceFolder}/17/main.go",
             "args": [
-                "${workspaceFolder}/17/17.test3.txt"
+                "${workspaceFolder}/17/17.txt"
             ]
         },
     ]
